@@ -78,8 +78,8 @@ class SMRTLoader:
         header_values: list of header record values.
         """
 
-        values = self._process_values(HEADER_FIELDS, header_values)
-        date_str, time_str = values['date_str'], values['time_str']
+        items = self._process_values(HEADER_FIELDS, header_values)
+        date_str, time_str = items['date_str'], items['time_str']
 
         # It's still possible to fail at this point - we haven't validated
         # the date and time fields represent a valid timestamp.
@@ -95,4 +95,4 @@ class SMRTLoader:
         except ValueError as e:
             raise DecodingError(f'failed to parse timestamp: {e}')
 
-        return SMRTFileInfo(timestamp, values['gen_num'])
+        return SMRTFileInfo(timestamp, items['gen_num'])
