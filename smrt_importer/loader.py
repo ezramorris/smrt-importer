@@ -38,6 +38,7 @@ class Field:
 
 SMRTFileInfo = namedtuple('SMRTFileInfo', 'timestamp gen_num')
 ConsumptionRecord = namedtuple('ConsumptionRecord', 'meter_number timestamp consumption')
+Trail = namedtuple('Trail', '')
 
 
 class DecodingError(Exception):
@@ -60,6 +61,11 @@ CONSUMPTION_FIELDS = [
     Field('date_str', '[0-9]{8}'),
     Field('time_str', '[0-9]{4}'),
     Field('consumption')
+]
+
+
+TRAIL_FIELDS = [
+    Field('record_type', 'TRAIL')
 ]
 
 
@@ -131,3 +137,12 @@ class SMRTLoader:
             raise DecodingError('failed to parse consumption value')
         
         return ConsumptionRecord(items['meter_number'], timestamp, consumption)
+    
+    def process_trail(self, trail_values: list) -> Trail:
+        """Process a trail record.
+        
+        trail_values: list of trail record values.
+        """
+
+        self._process_values(TRAIL_FIELDS, trail_values)
+        return Trail()
