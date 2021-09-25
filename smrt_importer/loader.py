@@ -73,13 +73,10 @@ class SMRTLoader:
         return items
 
     def process_header(self, header_values: list):
-        if len(header_values) != len(HEADER_FIELDS):
-            raise DecodingError('invalid number of header fields')
+        """Process a header record.
 
-        values = {}
-        for field, value in zip(HEADER_FIELDS, header_values):
-            field.validate(value)
-            values[field.name] = value
+        header_values: list of header record values.
+        """
 
         values = self._process_values(HEADER_FIELDS, header_values)
         date_str, time_str = values['date_str'], values['time_str']
