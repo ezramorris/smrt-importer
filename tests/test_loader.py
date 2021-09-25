@@ -1,4 +1,5 @@
 from datetime import datetime
+import unittest
 from unittest import TestCase
 
 from smrt_importer.loader import SMRTLoader, DecodingError
@@ -59,3 +60,6 @@ class ProcessHeaderTestCase(TestCase):
         header[5] = 'ABCDEFGH'
         with self.assertRaises(DecodingError):
             loader.process_header(header)
+
+if __name__ == '__main__':
+    unittest.main()
