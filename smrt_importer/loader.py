@@ -37,6 +37,7 @@ class Field:
 
 
 SMRTFileInfo = namedtuple('SMRTFileInfo', 'timestamp gen_num')
+ConsumptionRecord = namedtuple('ConsumptionRecord', 'meter_number timestamp consumption')
 
 
 class DecodingError(Exception):
@@ -50,6 +51,15 @@ HEADER_FIELDS = [
     Field('date_str', '[0-9]{8}'),
     Field('time_str', '[0-9]{6}'),
     Field('gen_num', '(PN|DV)[0-9]{6}')
+]
+
+
+CONSUMPTION_FIELDS = [
+    Field('record_type', 'CONSU'),
+    Field('meter_number'),
+    Field('date_str', '[0-9]{8}'),
+    Field('time_str', '[0-9]{4}'),
+    Field('consumption')
 ]
 
 
@@ -74,7 +84,7 @@ class SMRTLoader:
 
     def _parse_timestamp(self, date_str, time_str):
         """Parse a date and time string into a datetime object.
-
+        
         date_str: 8-digit date string (YYYYMMDD).
         time_str: 6- or 4-digit time string (HHMMSS or HHMM).
         """
@@ -92,7 +102,7 @@ class SMRTLoader:
             )
         except ValueError as e:
             raise DecodingError(f'failed to parse timestamp: {e}')
-
+        
         return timestamp
 
     def process_header(self, header_values: list):
@@ -104,3 +114,20 @@ class SMRTLoader:
         items = self._process_values(HEADER_FIELDS, header_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
         return SMRTFileInfo(timestamp, items['gen_num'])
+
+    def process_consumption(self, consumption_values: list) -> ConsumptionRecord:
+        """Process a single consumption record.
+
+        consumption_values: list of consumption record values.
+        """
+
+        items = self._process_values(CONSUMPTION_FIELDS, consumption_values)
+        timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
+
+        # Ensure consumption is a float (could have been interpreted as int/str).
+        try:
+            consumption = float(items['consumption'])
+        except ValueError:
+            raise DecodingError('failed to parse consumption value')
+        
+        return ConsumptionRecord(items['meter_number'], timestamp, consumption)
