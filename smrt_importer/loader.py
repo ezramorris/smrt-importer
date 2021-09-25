@@ -72,14 +72,12 @@ class SMRTLoader:
 
         return items
 
-    def process_header(self, header_values: list):
-        """Process a header record.
+    def _parse_timestamp(self, date_str, time_str):
+        """Parse a date and time string into a datetime object.
 
-        header_values: list of header record values.
+        date_str: 8-digit date string (YYYYMMDD).
+        time_str: 6- or 4-digit time string (HHMMSS or HHMM).
         """
-
-        items = self._process_values(HEADER_FIELDS, header_values)
-        date_str, time_str = items['date_str'], items['time_str']
 
         # It's still possible to fail at this point - we haven't validated
         # the date and time fields represent a valid timestamp.
@@ -90,9 +88,19 @@ class SMRTLoader:
                 day=int(date_str[6:8]),
                 hour=int(time_str[0:2]),
                 minute=int(time_str[2:4]),
-                second=int(time_str[4:6])
+                second=int(time_str[4:6] if len(time_str) > 4 else 0)
             )
         except ValueError as e:
             raise DecodingError(f'failed to parse timestamp: {e}')
 
+        return timestamp
+
+    def process_header(self, header_values: list):
+        """Process a header record.
+        
+        header_values: list of header record values.
+        """
+
+        items = self._process_values(HEADER_FIELDS, header_values)
+        timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
         return SMRTFileInfo(timestamp, items['gen_num'])
