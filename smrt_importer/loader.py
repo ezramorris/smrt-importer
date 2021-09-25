@@ -130,7 +130,7 @@ class SMRTLoader:
         items = self._process_values(CONSUMPTION_FIELDS, consumption_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
 
-        # Ensure consumption is a float (could have been interpreted as int/str).
+        # Cast consumption to float.
         try:
             consumption = float(items['consumption'])
         except ValueError:
