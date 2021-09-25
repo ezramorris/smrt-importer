@@ -7,9 +7,10 @@ import re
 class Field:
     """Holds information about a CSV field."""
 
-    def __init__(self, name, format) -> None:
+    def __init__(self, name, format=None) -> None:
         """name: field name
-        format: regular expression which field values must fully match
+        format: regular expression which field values must fully match.
+            If None, any value accepted.
         """
 
         self.name = name
@@ -21,7 +22,18 @@ class Field:
 
     @format.setter
     def format(self, format):
-        self._format = re.compile(format)
+        if format is None:
+            self._format = None
+        else:
+            self._format = re.compile(format)
+
+    def validate(self, value) -> None:
+        """Validate a value against this field. Returns if the value is valid,
+        otherwise raises a DecodingError.
+        """
+
+        if self.format is not None and re.fullmatch(self.format, value) is None:
+            raise DecodingError(f'invalid {self.name} value: {value}')
 
 
 SMRTFileInfo = namedtuple('SMRTFileInfo', 'timestamp gen_num')
@@ -42,17 +54,13 @@ HEADER_FIELDS = [
 
 
 class SMRTLoader:
-    def _validate_field(self, field: Field, value):
-        if re.fullmatch(field.format, value) is None:
-            raise DecodingError(f'invalid {field.name} value: {value}')
-
     def process_header(self, header_values: list):
         if len(header_values) != len(HEADER_FIELDS):
             raise DecodingError('invalid number of header fields')
 
         values = {}
         for field, value in zip(HEADER_FIELDS, header_values):
-            self._validate_field(field, value)
+            field.validate(value)
             values[field.name] = value
 
         date_str, time_str = values['date_str'], values['time_str']
