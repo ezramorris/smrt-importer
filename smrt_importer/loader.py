@@ -54,6 +54,24 @@ HEADER_FIELDS = [
 
 
 class SMRTLoader:
+    def _process_values(self, fields, values):
+        """Validates a list of values and converts them into a dict of
+        `{field_name: value}`.
+
+        fields: list of `Field` objects.
+        values: list of values to process. Must be the same length as `fields`.
+        """
+
+        if len(values) != len(fields):
+            raise DecodingError('invalid number of fields')
+
+        items = {}
+        for field, value in zip(fields, values):
+            field.validate(value)
+            items[field.name] = value
+
+        return items
+
     def process_header(self, header_values: list):
         if len(header_values) != len(HEADER_FIELDS):
             raise DecodingError('invalid number of header fields')
@@ -63,6 +81,7 @@ class SMRTLoader:
             field.validate(value)
             values[field.name] = value
 
+        values = self._process_values(HEADER_FIELDS, header_values)
         date_str, time_str = values['date_str'], values['time_str']
 
         # It's still possible to fail at this point - we haven't validated
