@@ -5,9 +5,9 @@ import re
 
 
 class FieldType(Enum):
-    header = 'HEADR'
-    consumption = 'CONSU'
-    trail = 'TRAIL'
+    HEADER = 'HEADR'
+    CONSUMPTION = 'CONSU'
+    TRAIL = 'TRAIL'
 
 
 class Field:
@@ -52,7 +52,7 @@ class DecodingError(Exception):
 
 
 HEADER_FIELDS = [
-    Field('record_type', FieldType.header.value),
+    Field('record_type', FieldType.HEADER.value),
     Field('file_type', 'SMRT'),
     Field('company_id', 'GAZ'),
     Field('date_str', '[0-9]{8}'),
@@ -62,7 +62,7 @@ HEADER_FIELDS = [
 
 
 CONSUMPTION_FIELDS = [
-    Field('record_type', FieldType.consumption.value),
+    Field('record_type', FieldType.CONSUMPTION.value),
     Field('meter_number'),
     Field('date_str', '[0-9]{8}'),
     Field('time_str', '[0-9]{4}'),
@@ -71,7 +71,7 @@ CONSUMPTION_FIELDS = [
 
 
 TRAIL_FIELDS = [
-    Field('record_type', FieldType.trail.value)
+    Field('record_type', FieldType.TRAIL.value)
 ]
 
 
@@ -79,9 +79,9 @@ class SMRTLoader:
     def __init__(self):
         # Lookup table of record processing methods.
         self.methods = {
-            FieldType.header: self.process_header,
-            FieldType.consumption: self.process_consumption,
-            FieldType.trail: self.process_trail
+            FieldType.HEADER: self.process_header,
+            FieldType.CONSUMPTION: self.process_consumption,
+            FieldType.TRAIL: self.process_trail
         }
 
     def _process_values(self, fields, values):
