@@ -61,7 +61,7 @@ class SMRTFileData:
         return self.received_trail
 
 
-SMRTFileInfo = namedtuple('SMRTFileInfo', 'timestamp gen_num')
+HeaderRecord = namedtuple('SMRTFileInfo', 'timestamp gen_num')
 ConsumptionRecord = namedtuple('ConsumptionRecord', 'meter_number timestamp consumption')
 
 
@@ -146,7 +146,7 @@ class SMRTLoader:
 
         items = self._process_values(HEADER_FIELDS, header_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
-        self.data.header = SMRTFileInfo(timestamp, items['gen_num'])
+        self.data.header = HeaderRecord(timestamp, items['gen_num'])
 
     def process_consumption(self, consumption_values: list):
         """Process a single consumption record.

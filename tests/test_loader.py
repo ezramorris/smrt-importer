@@ -3,7 +3,7 @@ import unittest
 from unittest import TestCase
 
 from smrt_importer.loader import (
-    SMRTLoader, DecodingError, SMRTFileInfo, ConsumptionRecord
+    SMRTLoader, DecodingError, HeaderRecord, ConsumptionRecord
 )
 
 
@@ -144,7 +144,7 @@ class ProcessRecordTestCase(TestCase):
         loader = SMRTLoader()
         loader.process_record(VALID_HEADER)
         self.assertTrue(loader.data.has_received_header())
-        self.assertIsInstance(loader.data.header, SMRTFileInfo)
+        self.assertIsInstance(loader.data.header, HeaderRecord)
         self.assertEqual(loader.data.consumption_records, [])
         self.assertFalse(loader.data.has_received_trail())
 
