@@ -42,9 +42,27 @@ class Field:
             raise DecodingError(f'invalid {self.name} value: {value}')
 
 
+class SMRTFileData:
+    """Holds decoded components of a SMRT file."""
+
+    def __init__(self) -> None:
+        self.header = None
+        self.consumption_records = []
+        self.received_trail = False
+
+    def has_received_header(self):
+        """Returns True if header record is present, else False."""
+
+        return self.header is not None
+
+    def has_received_trail(self):
+        """Returns True if trail record has been received, else False."""
+
+        return self.received_trail
+
+
 SMRTFileInfo = namedtuple('SMRTFileInfo', 'timestamp gen_num')
 ConsumptionRecord = namedtuple('ConsumptionRecord', 'meter_number timestamp consumption')
-Trail = namedtuple('Trail', '')
 
 
 class DecodingError(Exception):
@@ -77,12 +95,7 @@ TRAIL_FIELDS = [
 
 class SMRTLoader:
     def __init__(self):
-        # Lookup table of record processing methods.
-        self.methods = {
-            FieldType.HEADER: self.process_header,
-            FieldType.CONSUMPTION: self.process_consumption,
-            FieldType.TRAIL: self.process_trail
-        }
+        self.data = SMRTFileData()
 
     def _process_values(self, fields, values):
         """Validates a list of values and converts them into a dict of
@@ -133,9 +146,9 @@ class SMRTLoader:
 
         items = self._process_values(HEADER_FIELDS, header_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
-        return SMRTFileInfo(timestamp, items['gen_num'])
+        self.data.header = SMRTFileInfo(timestamp, items['gen_num'])
 
-    def process_consumption(self, consumption_values: list) -> ConsumptionRecord:
+    def process_consumption(self, consumption_values: list):
         """Process a single consumption record.
 
         consumption_values: list of consumption record values.
@@ -150,16 +163,17 @@ class SMRTLoader:
         except ValueError:
             raise DecodingError('failed to parse consumption value')
         
-        return ConsumptionRecord(items['meter_number'], timestamp, consumption)
+        record = ConsumptionRecord(items['meter_number'], timestamp, consumption)
+        self.data.consumption_records.append(record)
     
-    def process_trail(self, trail_values: list) -> Trail:
+    def process_trail(self, trail_values: list):
         """Process a trail record.
         
         trail_values: list of trail record values.
         """
 
         self._process_values(TRAIL_FIELDS, trail_values)
-        return Trail()
+        self.data.received_trail = True
 
     def process_record(self, values):
         """Process a single header, consumption or trail record.
@@ -167,10 +181,42 @@ class SMRTLoader:
         values: list of record values.
         """
 
+        # Possible states and results.
+        # RH=received header.
+        # RT=received trail.
+        #
+        # | Record type | RH | RT | Result |
+        # --------------------------------
+        # | Header      | N  | N  | OK     |
+        # | Header      | Y  | N  | Error  |
+        # | Header      | Y  | Y  | Error  |
+        # | Consumption | N  | N  | Error  |
+        # | Consumption | Y  | N  | OK     |
+        # | Consumption | Y  | Y  | Error  |
+        # | Trail       | N  | N  | Error  |
+        # | Trail       | Y  | N  | OK     |
+        # | Trail       | Y  | Y  | Error  |
+        # | Other       | ?  | ?  | Error  |
+
         try:
             field_type = FieldType(values[0])
         except ValueError:
             raise DecodingError(f'invalid field type detected: {values[0]}')
-        
-        method = self.methods[field_type]
-        return method(values)
+
+        if field_type == FieldType.HEADER:
+            if self.data.has_received_header():
+                raise DecodingError('out of sequence header record received')
+            self.process_header(values)
+
+        elif field_type == FieldType.CONSUMPTION:
+            if not self.data.has_received_header() or self.data.has_received_trail():
+                raise DecodingError('out of sequence consumption record received')
+            self.process_consumption(values)
+
+        elif field_type == FieldType.TRAIL:
+            if not self.data.has_received_header() or self.data.has_received_trail():
+                raise DecodingError('out of sequence trail record received')
+            self.process_trail(values)
+
+        else:
+            raise NotImplementedError(f'field type {field_type.value} not implemented')
