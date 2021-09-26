@@ -1,4 +1,5 @@
 from datetime import datetime
+from io import StringIO
 import unittest
 from unittest import TestCase
 
@@ -196,6 +197,45 @@ class ProcessRecordTestCase(TestCase):
         loader = SMRTLoader()
         with self.assertRaises(DecodingError):
             loader.process_record(['FOO', '123', '456'])
+
+class ProcessCSVTestCase(TestCase):
+    # No need to test all different scenarios of invalid files as most covered above.
+    # Only additional failure scenarios are invalid CSV, and missing trail.
+
+    def test_valid_csv(self):
+        # Build CSV into an in-memory file object.
+        f = StringIO()
+        f.write('"HEADR","SMRT","GAZ","20191011","134942","PN007505"\n')
+        f.write('"CONSU","0000000001","20190928","0000",0.00\n')
+        f.write('"CONSU","0000000001","20190928","0100",1.52\n')
+        f.write('"TRAIL"\n')
+        f.seek(0)
+
+        loader = SMRTLoader()
+        loader.process_csv(f)
+        self.assertTrue(loader.data.has_received_header())
+        self.assertEqual(len(loader.data.consumption_records), 2)
+        self.assertTrue(loader.data.has_received_trail())
+
+    def test_no_trail(self):
+        # Build CSV into an in-memory file object.
+        f = StringIO()
+        f.write('"HEADR","SMRT","GAZ","20191011","134942","PN007505"\n')
+        f.write('"CONSU","0000000001","20190928","0000",0.00\n')
+        f.write('"CONSU","0000000001","20190928","0100",1.52\n')
+        f.seek(0)
+
+        loader = SMRTLoader()
+        with self.assertRaises(DecodingError):
+            loader.process_csv(f)
+
+    def test_invalid_csv(self):
+        f = StringIO('"\n')
+        f.seek(0)
+
+        loader = SMRTLoader()
+        with self.assertRaises(DecodingError):
+            loader.process_csv(f)
 
 
 if __name__ == '__main__':

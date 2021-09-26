@@ -1,4 +1,5 @@
 from collections import namedtuple
+import csv
 from datetime import datetime
 from enum import Enum
 import re
@@ -220,3 +221,20 @@ class SMRTLoader:
 
         else:
             raise NotImplementedError(f'field type {field_type.value} not implemented')
+
+    def process_csv(self, f):
+        """Process all lines of CSV file.
+        
+        f: file object or list of strings containing CSV data.
+        """
+
+        try:
+            reader = csv.reader(f, strict=True)
+            for row in reader:
+                self.process_record(row)
+        except csv.Error as e:
+            raise DecodingError(f'error decoding CSV: {e}')
+
+        # Check file has been fully read in.
+        if not self.data.has_received_trail():
+            raise DecodingError('file did not end in a trail record')
