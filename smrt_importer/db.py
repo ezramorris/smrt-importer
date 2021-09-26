@@ -39,7 +39,7 @@ class Record(Base):
 
     def __repr__(self) -> str:
         return f'Record(id={self.id!r}, file_id={self.file_id!r}, ' \
-            f'meter_number={self.meter_number!r}, timestamp={self.timestamp!r} ' \
+            f'meter_number={self.meter_number!r}, timestamp={self.timestamp!r}, ' \
             f'consumption={self.consumption!r})'
 
 
