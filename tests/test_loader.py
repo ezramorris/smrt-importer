@@ -2,7 +2,9 @@ from datetime import datetime
 import unittest
 from unittest import TestCase
 
-from smrt_importer.loader import SMRTLoader, DecodingError, Trail
+from smrt_importer.loader import (
+    SMRTLoader, DecodingError, SMRTFileInfo, ConsumptionRecord, Trail
+)
 
 
 VALID_HEADER = ['HEADR', 'SMRT', 'GAZ', '20210102', '135821', 'PN123456']
@@ -134,6 +136,29 @@ class ProcessTrailTestCase(TestCase):
         loader = SMRTLoader()
         with self.assertRaises(DecodingError):
             loader.process_trail(['FOO'])
+
+
+class ProcessRecordTestCase(TestCase):
+    def test_process_header(self):
+        loader = SMRTLoader()
+        record = loader.process_record(VALID_HEADER)
+        self.assertIsInstance(record, SMRTFileInfo)
+
+    def test_process_consumption(self):
+        loader = SMRTLoader()
+        record = loader.process_record(VALID_CONSUMPTION)
+        self.assertIsInstance(record, ConsumptionRecord)
+    
+    def test_process_trail(self):
+        loader = SMRTLoader()
+        record = loader.process_record(VALID_TRAIL)
+        self.assertIsInstance(record, Trail)
+
+    def test_process_invalid_record(self):
+        loader = SMRTLoader()
+        with self.assertRaises(DecodingError):
+            loader.process_record(['FOO', '123', '456'])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -4,6 +4,12 @@ from enum import Enum
 import re
 
 
+class FieldType(Enum):
+    header = 'HEADR'
+    consumption = 'CONSU'
+    trail = 'TRAIL'
+
+
 class Field:
     """Holds information about a CSV field."""
 
@@ -46,7 +52,7 @@ class DecodingError(Exception):
 
 
 HEADER_FIELDS = [
-    Field('record_type', 'HEADR'),
+    Field('record_type', FieldType.header.value),
     Field('file_type', 'SMRT'),
     Field('company_id', 'GAZ'),
     Field('date_str', '[0-9]{8}'),
@@ -56,7 +62,7 @@ HEADER_FIELDS = [
 
 
 CONSUMPTION_FIELDS = [
-    Field('record_type', 'CONSU'),
+    Field('record_type', FieldType.consumption.value),
     Field('meter_number'),
     Field('date_str', '[0-9]{8}'),
     Field('time_str', '[0-9]{4}'),
@@ -65,11 +71,19 @@ CONSUMPTION_FIELDS = [
 
 
 TRAIL_FIELDS = [
-    Field('record_type', 'TRAIL')
+    Field('record_type', FieldType.trail.value)
 ]
 
 
 class SMRTLoader:
+    def __init__(self):
+        # Lookup table of record processing methods.
+        self.methods = {
+            FieldType.header: self.process_header,
+            FieldType.consumption: self.process_consumption,
+            FieldType.trail: self.process_trail
+        }
+
     def _process_values(self, fields, values):
         """Validates a list of values and converts them into a dict of
         `{field_name: value}`.
@@ -146,3 +160,17 @@ class SMRTLoader:
 
         self._process_values(TRAIL_FIELDS, trail_values)
         return Trail()
+
+    def process_record(self, values):
+        """Process a single header, consumption or trail record.
+        
+        values: list of record values.
+        """
+
+        try:
+            field_type = FieldType(values[0])
+        except ValueError:
+            raise DecodingError(f'invalid field type detected: {values[0]}')
+        
+        method = self.methods[field_type]
+        return method(values)
