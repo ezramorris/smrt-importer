@@ -238,3 +238,12 @@ class SMRTLoader:
         # Check file has been fully read in.
         if not self.data.has_received_trail():
             raise DecodingError('file did not end in a trail record')
+    
+    def process_file(self, filename):
+        """Process all lines of a CSV file.
+        
+        filename: file path (string or Path object) to CSV file.
+        """
+
+        with open(filename, newline='') as f:
+            self.process_csv(f)

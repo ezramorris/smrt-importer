@@ -1,5 +1,7 @@
 from datetime import datetime
 from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest import TestCase
 
@@ -236,6 +238,23 @@ class ProcessCSVTestCase(TestCase):
         loader = SMRTLoader()
         with self.assertRaises(DecodingError):
             loader.process_csv(f)
+
+
+class ProcessFileTestCase(TestCase):
+    def test_process_file(self):
+        with TemporaryDirectory() as d:
+            p = Path(d) / 'test.csv'
+            with open(p, 'w') as f:
+                f.write('"HEADR","SMRT","GAZ","20191011","134942","PN007505"\n')
+                f.write('"CONSU","0000000001","20190928","0000",0.00\n')
+                f.write('"CONSU","0000000001","20190928","0100",1.52\n')
+                f.write('"TRAIL"\n')
+
+            loader = SMRTLoader()
+            loader.process_file(p)
+            self.assertTrue(loader.data.has_received_header())
+            self.assertEqual(len(loader.data.consumption_records), 2)
+            self.assertTrue(loader.data.has_received_trail())
 
 
 if __name__ == '__main__':
