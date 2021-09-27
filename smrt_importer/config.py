@@ -3,22 +3,34 @@ from configparser import ConfigParser
 from pathlib import Path
 
 
-Config = namedtuple('Config', 'db_path')
+_BASE = Path(__file__).parent.parent
 
 
-def load_config():
-    """Loads config from config file and returns a Config object."""
+class Config:
+    """Hold application configuration."""
 
-    base = config_path = Path(__file__).parent.parent
-    config_path = base / 'config.ini'
-    parser = ConfigParser()
-    parser.read(config_path)
+    def __init__(self):
+        self.db_path = None
+        self.incoming_dir = None
+        self.processed_dir = None
 
-    db_path = Path(parser['DB']['path'])
-    if not db_path.is_absolute():
-        db_path = base / db_path
+    @staticmethod
+    def _make_absolute(path):
+        if not path.is_absolute():
+            path = _BASE / path
+        return path
 
-    return Config(db_path)
+    def load(self):
+        """Loads config from config file."""
+
+        config_path = _BASE / 'config.ini'
+        parser = ConfigParser()
+        parser.read(config_path)
+
+        self.db_path = self._make_absolute(Path(parser['DB']['path']))
+        self.incoming_dir = self._make_absolute(Path(parser['Folders']['incoming']))
+        self.processed_dir = self._make_absolute(Path(parser['Folders']['processed']))
 
 
-config = load_config()
+config = Config()
+config.load()
