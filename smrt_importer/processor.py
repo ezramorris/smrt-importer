@@ -5,7 +5,7 @@ from pathlib import Path
 from time import sleep
 
 from smrt_importer.config import config
-from smrt_importer.loader import SMRTLoader, DecodingError
+from smrt_importer.loader import SMRTLoader
 from smrt_importer.db import insert_file
 
 
