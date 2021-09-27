@@ -2,6 +2,7 @@
 
 
 from pathlib import Path
+from sqlalchemy.exc import IntegrityError
 from time import sleep
 
 from smrt_importer.config import config
@@ -43,6 +44,9 @@ def process_file(path):
         loader = SMRTLoader()
         file = loader.load_file(path)
         insert_file(file)
+    except IntegrityError:  # Most likely a unique constraint on File failed.
+        print(f'    Already imported, skipping')
+        dest = config.failed_dir
     except Exception as e:
         print(f'    Failed: {e}')
         dest = config.failed_dir
