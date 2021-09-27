@@ -83,6 +83,7 @@ def watch_dir(path=config.incoming_dir):
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
 
+    print(f'Watching {path}...')
     try:
         while True:
             process_dir(path)
