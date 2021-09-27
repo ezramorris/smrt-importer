@@ -5,7 +5,8 @@ from unittest import TestCase
 
 from sqlalchemy.orm.session import sessionmaker
 
-from smrt_importer.db import Session, File, Record
+from smrt_importer.db import Session
+from smrt_importer.models import File, Record
 
 
 class FileTestCase(TestCase):
