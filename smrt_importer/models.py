@@ -1,7 +1,7 @@
 """SMART Importer models."""
 
 
-from sqlalchemy import CHAR, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import CHAR, Column, DateTime, Float, ForeignKey, Integer, String, PrimaryKeyConstraint
 from sqlalchemy.orm import declarative_base, relationship
 
 
@@ -28,11 +28,17 @@ class File(Base):
 class Record(Base):
     __tablename__ = 'record'
 
-    id = Column(Integer, primary_key=True)
+    # We don't have or need a dedicated ID primary field.
+    # We use meter number and measurement time as a composite primary key,
+    # as these must be unique and allows for easy updating.
+
     file_id = Column(Integer, ForeignKey('file.id'), nullable=False)
     meter_number = Column(String, nullable=False)
     measurement_time = Column(DateTime, nullable=False)
     consumption = Column(Float, nullable=True)
+
+    # Manually add primary key constraint allowing field replacement.
+    __table_args__ = PrimaryKeyConstraint(meter_number, measurement_time, sqlite_on_conflict='REPLACE'),
 
     file = relationship('File', back_populates='records')
 
