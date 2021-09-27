@@ -240,7 +240,11 @@ class SMRTLoader:
         """Process all lines of a CSV file.
         
         filename: file path (string or Path object) to CSV file.
+
+        Returns the new File object created.
         """
 
         with open(filename, newline='') as f:
             self.process_csv(f)
+
+        return self.data

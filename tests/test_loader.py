@@ -1,7 +1,6 @@
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from smrt_importer.config import load_config
 from tempfile import TemporaryDirectory
 import unittest
 from unittest import TestCase
@@ -256,7 +255,7 @@ class ProcessFileTestCase(TestCase):
                 f.write('"TRAIL"\n')
 
             loader = SMRTLoader()
-            loader.process_file(p)
+            self.assertIs(loader.process_file(p), loader.data)
             self.assertEqual(len(loader.data.records), 2)
 
 
