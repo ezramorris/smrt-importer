@@ -12,7 +12,7 @@ class File(Base):
     __tablename__ = 'file'
 
     id = Column(Integer, primary_key=True)
-    filename = Column(String, nullable=False)
+    filename = Column(String, nullable=False, unique=True)
     creation_time = Column(DateTime, nullable=False)
     imported_time = Column(DateTime, nullable=False)
     gen_num = Column(CHAR(8), nullable=False)
