@@ -9,6 +9,22 @@ from smrt_importer.loader import SMRTLoader
 from smrt_importer.db import insert_file
 
 
+def move_file(path: Path, dest: Path):
+    """Move a file, adding a suffix if necessary.
+    
+    path: file path
+    dest: destination directory
+    """
+
+    newpath = dest / path.name
+    i=1
+    while newpath.exists():
+        newpath = dest / f'{path.stem}_{i}{path.suffix}'
+        i+=1
+
+    path.rename(newpath)
+
+
 def process_file(path):
     """Load data from a single file, save to DB, then move to processed dir
     (if successful) or failed dir.
@@ -29,13 +45,12 @@ def process_file(path):
         insert_file(file)
     except Exception as e:
         print(f'    Failed: {e}')
-        dest = config.failed_dir / path.name
-        raise
+        dest = config.failed_dir
     else:
         print('    OK')
-        dest = config.processed_dir / path.name
+        dest = config.processed_dir
     finally:
-        path.rename(dest)
+        move_file(path, dest)
 
 
 def process_dir(path=config.incoming_dir):
