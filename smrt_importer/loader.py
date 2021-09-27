@@ -75,6 +75,14 @@ TRAIL_FIELDS = [
 
 class SMRTLoader:
     def __init__(self):
+        # Create map of field types to method.
+        # Can't be done at declaration time, as the object doesn't exist yet.
+        self._field_type_method_map = {
+            FieldType.HEADER: self.process_header,
+            FieldType.CONSUMPTION: self.process_consumption,
+            FieldType.TRAIL: self.process_trail
+        }
+
         self.data = None
         self._received_header = False
         self._received_trail = False
@@ -125,11 +133,31 @@ class SMRTLoader:
 
         return self._received_trail
 
+    # Possible states and results.
+    # RH=received header.
+    # RT=received trail.
+    #
+    # | Record type | RH | RT | Result |
+    # --------------------------------
+    # | Header      | N  | N  | OK     |
+    # | Header      | Y  | N  | Error  |
+    # | Header      | Y  | Y  | Error  |
+    # | Consumption | N  | N  | Error  |
+    # | Consumption | Y  | N  | OK     |
+    # | Consumption | Y  | Y  | Error  |
+    # | Trail       | N  | N  | Error  |
+    # | Trail       | Y  | N  | OK     |
+    # | Trail       | Y  | Y  | Error  |
+    # | Other       | ?  | ?  | Error  |
+
     def process_header(self, header_values: list):
         """Process a header record.
         
         header_values: list of header record values.
         """
+
+        if self._received_header:
+            raise DecodingError('out of sequence header record received')
 
         items = self._process_values(HEADER_FIELDS, header_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
@@ -141,6 +169,9 @@ class SMRTLoader:
 
         consumption_values: list of consumption record values.
         """
+        
+        if not self._received_header or self._received_trail:
+            raise DecodingError('out of sequence consumption record received')
 
         items = self._process_values(CONSUMPTION_FIELDS, consumption_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
@@ -163,6 +194,9 @@ class SMRTLoader:
         
         trail_values: list of trail record values.
         """
+        
+        if not self._received_header or self._received_trail:
+            raise DecodingError('out of sequence trail record received')
 
         self._process_values(TRAIL_FIELDS, trail_values)
         self._received_trail = True
@@ -173,45 +207,17 @@ class SMRTLoader:
         values: list of record values.
         """
 
-        # Possible states and results.
-        # RH=received header.
-        # RT=received trail.
-        #
-        # | Record type | RH | RT | Result |
-        # --------------------------------
-        # | Header      | N  | N  | OK     |
-        # | Header      | Y  | N  | Error  |
-        # | Header      | Y  | Y  | Error  |
-        # | Consumption | N  | N  | Error  |
-        # | Consumption | Y  | N  | OK     |
-        # | Consumption | Y  | Y  | Error  |
-        # | Trail       | N  | N  | Error  |
-        # | Trail       | Y  | N  | OK     |
-        # | Trail       | Y  | Y  | Error  |
-        # | Other       | ?  | ?  | Error  |
-
         try:
             field_type = FieldType(values[0])
         except ValueError:
             raise DecodingError(f'invalid field type detected: {values[0]}')
 
-        if field_type == FieldType.HEADER:
-            if self._received_header:
-                raise DecodingError('out of sequence header record received')
-            self.process_header(values)
-
-        elif field_type == FieldType.CONSUMPTION:
-            if not self._received_header or self._received_trail:
-                raise DecodingError('out of sequence consumption record received')
-            self.process_consumption(values)
-
-        elif field_type == FieldType.TRAIL:
-            if not self._received_header or self._received_trail:
-                raise DecodingError('out of sequence trail record received')
-            self.process_trail(values)
-
-        else:
+        try:
+            process = self._field_type_method_map[field_type]
+        except KeyError:
             raise NotImplementedError(f'field type {field_type.value} not implemented')
+
+        process(values)
 
     def process_csv(self, f):
         """Process all lines of CSV file.
