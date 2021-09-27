@@ -2,6 +2,7 @@ from collections import namedtuple
 import csv
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 import re
 
 from smrt_importer.models import File, Record
@@ -83,7 +84,7 @@ class SMRTLoader:
             FieldType.TRAIL: self.load_trail
         }
 
-        self.data = None
+        self.data = File()
         self._received_header = False
         self._received_trail = False
 
@@ -161,7 +162,8 @@ class SMRTLoader:
 
         items = self._convert_values(HEADER_FIELDS, header_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
-        self.data = File(timestamp=timestamp, gen_num=items['gen_num'], records=[])
+        self.data.creation_time = timestamp
+        self.data.gen_num=items['gen_num']
         self._received_header = True
 
     def load_consumption(self, consumption_values: list):
@@ -184,7 +186,7 @@ class SMRTLoader:
         
         record = Record(
             meter_number=items['meter_number'], 
-            timestamp=timestamp, 
+            measurement_time=timestamp, 
             consumption=consumption
         )
         self.data.records.append(record)
@@ -243,6 +245,11 @@ class SMRTLoader:
 
         Returns the new File object created.
         """
+
+        filename = Path(filename)
+
+        self.data.filename = filename.name
+        self.data.imported_time = datetime.now()
 
         with open(filename, newline='') as f:
             self.load_csv(f)

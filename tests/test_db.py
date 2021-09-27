@@ -10,9 +10,11 @@ from smrt_importer.models import File, Record
 class InsertFileTestCase(TestCase):
     def test_insert_file_with_record(self):
         file = File(
-            timestamp = datetime.now(),
+            filename = 'FOO.SMRT',
+            creation_time = datetime.now(),
+            imported_time = datetime.now(),
             gen_num = 'PV123456',
-            records = [Record(meter_number='1234', timestamp=datetime.now(), consumption=1.23)]
+            records = [Record(meter_number='1234', measurement_time=datetime.now(), consumption=1.23)]
         )
         file_id = insert_file(file)
         self.assertIsNotNone(file_id)

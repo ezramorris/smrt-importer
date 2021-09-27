@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from unittest import TestCase
+from unittest.mock import Mock
 
 from smrt_importer.loader import SMRTLoader, DecodingError
 from smrt_importer.models import File, Record
@@ -39,7 +40,7 @@ class ProcessHeaderTestCase(TestCase):
     def test_parse_valid_timestamp(self):
         loader = SMRTLoader()
         loader.load_header(VALID_HEADER)
-        self.assertEqual(loader.data.timestamp, datetime(2021, 1, 2, 13, 58, 21))
+        self.assertEqual(loader.data.creation_time, datetime(2021, 1, 2, 13, 58, 21))
 
     def test_parse_invalid_date(self):
         loader = SMRTLoader()
@@ -103,7 +104,7 @@ class ProcessConsumptionTestCase(TestCase):
         loader = SMRTLoader()
         loader.load_header(VALID_HEADER)
         loader.load_consumption(VALID_CONSUMPTION)
-        self.assertEqual(loader.data.records[0].timestamp, datetime(2020, 11, 22, 8, 1))
+        self.assertEqual(loader.data.records[0].measurement_time, datetime(2020, 11, 22, 8, 1))
 
     def test_parse_invalid_date(self):
         loader = SMRTLoader()
@@ -257,6 +258,7 @@ class ProcessFileTestCase(TestCase):
             loader = SMRTLoader()
             self.assertIs(loader.load_file(p), loader.data)
             self.assertEqual(len(loader.data.records), 2)
+            self.assertEqual(loader.data.filename, 'test.csv')
 
 
 if __name__ == '__main__':
