@@ -13,6 +13,7 @@ class Config:
         self.db_path = None
         self.incoming_dir = None
         self.processed_dir = None
+        self.failed_dir = None
 
     @staticmethod
     def _make_absolute(path):
@@ -30,6 +31,7 @@ class Config:
         self.db_path = self._make_absolute(Path(parser['DB']['path']))
         self.incoming_dir = self._make_absolute(Path(parser['Folders']['incoming']))
         self.processed_dir = self._make_absolute(Path(parser['Folders']['processed']))
+        self.failed_dir = self._make_absolute(Path(parser['Folders']['failed']))
 
 
 config = Config()
