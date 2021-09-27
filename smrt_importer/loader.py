@@ -4,6 +4,8 @@ from datetime import datetime
 from enum import Enum
 import re
 
+from smrt_importer.models import File, Record
+
 
 class FieldType(Enum):
     HEADER = 'HEADR'
@@ -43,29 +45,6 @@ class Field:
             raise DecodingError(f'invalid {self.name} value: {value}')
 
 
-class SMRTFileData:
-    """Holds decoded components of a SMRT file."""
-
-    def __init__(self) -> None:
-        self.header = None
-        self.consumption_records = []
-        self.received_trail = False
-
-    def has_received_header(self):
-        """Returns True if header record is present, else False."""
-
-        return self.header is not None
-
-    def has_received_trail(self):
-        """Returns True if trail record has been received, else False."""
-
-        return self.received_trail
-
-
-HeaderRecord = namedtuple('SMRTFileInfo', 'timestamp gen_num')
-ConsumptionRecord = namedtuple('ConsumptionRecord', 'meter_number timestamp consumption')
-
-
 class DecodingError(Exception):
     pass
 
@@ -96,7 +75,9 @@ TRAIL_FIELDS = [
 
 class SMRTLoader:
     def __init__(self):
-        self.data = SMRTFileData()
+        self.data = None
+        self._received_header = False
+        self._received_trail = False
 
     def _process_values(self, fields, values):
         """Validates a list of values and converts them into a dict of
@@ -139,6 +120,11 @@ class SMRTLoader:
         
         return timestamp
 
+    def is_complete(self):
+        """Return True if a complete file has been loaded, else False."""
+
+        return self._received_trail
+
     def process_header(self, header_values: list):
         """Process a header record.
         
@@ -147,7 +133,8 @@ class SMRTLoader:
 
         items = self._process_values(HEADER_FIELDS, header_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
-        self.data.header = HeaderRecord(timestamp, items['gen_num'])
+        self.data = File(timestamp=timestamp, gen_num=items['gen_num'], records=[])
+        self._received_header = True
 
     def process_consumption(self, consumption_values: list):
         """Process a single consumption record.
@@ -164,8 +151,12 @@ class SMRTLoader:
         except ValueError:
             raise DecodingError('failed to parse consumption value')
         
-        record = ConsumptionRecord(items['meter_number'], timestamp, consumption)
-        self.data.consumption_records.append(record)
+        record = Record(
+            meter_number=items['meter_number'], 
+            timestamp=timestamp, 
+            consumption=consumption
+        )
+        self.data.records.append(record)
     
     def process_trail(self, trail_values: list):
         """Process a trail record.
@@ -174,7 +165,7 @@ class SMRTLoader:
         """
 
         self._process_values(TRAIL_FIELDS, trail_values)
-        self.data.received_trail = True
+        self._received_trail = True
 
     def process_record(self, values):
         """Process a single header, consumption or trail record.
@@ -205,17 +196,17 @@ class SMRTLoader:
             raise DecodingError(f'invalid field type detected: {values[0]}')
 
         if field_type == FieldType.HEADER:
-            if self.data.has_received_header():
+            if self._received_header:
                 raise DecodingError('out of sequence header record received')
             self.process_header(values)
 
         elif field_type == FieldType.CONSUMPTION:
-            if not self.data.has_received_header() or self.data.has_received_trail():
+            if not self._received_header or self._received_trail:
                 raise DecodingError('out of sequence consumption record received')
             self.process_consumption(values)
 
         elif field_type == FieldType.TRAIL:
-            if not self.data.has_received_header() or self.data.has_received_trail():
+            if not self._received_header or self._received_trail:
                 raise DecodingError('out of sequence trail record received')
             self.process_trail(values)
 
@@ -236,8 +227,8 @@ class SMRTLoader:
             raise DecodingError(f'error decoding CSV: {e}')
 
         # Check file has been fully read in.
-        if not self.data.has_received_trail():
-            raise DecodingError('file did not end in a trail record')
+        if not self.is_complete():
+            raise DecodingError('incomplete file received')
     
     def process_file(self, filename):
         """Process all lines of a CSV file.

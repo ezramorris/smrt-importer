@@ -1,13 +1,13 @@
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
+from smrt_importer.config import load_config
 from tempfile import TemporaryDirectory
 import unittest
 from unittest import TestCase
 
-from smrt_importer.loader import (
-    SMRTLoader, DecodingError, HeaderRecord, ConsumptionRecord
-)
+from smrt_importer.loader import SMRTLoader, DecodingError
+from smrt_importer.models import File, Record
 
 
 VALID_HEADER = ['HEADR', 'SMRT', 'GAZ', '20210102', '135821', 'PN123456']
@@ -40,7 +40,7 @@ class ProcessHeaderTestCase(TestCase):
     def test_parse_valid_timestamp(self):
         loader = SMRTLoader()
         loader.process_header(VALID_HEADER)
-        self.assertEqual(loader.data.header.timestamp, datetime(2021, 1, 2, 13, 58, 21))
+        self.assertEqual(loader.data.timestamp, datetime(2021, 1, 2, 13, 58, 21))
 
     def test_parse_invalid_date(self):
         loader = SMRTLoader()
@@ -59,7 +59,7 @@ class ProcessHeaderTestCase(TestCase):
     def test_parse_valid_gen_num(self):
         loader = SMRTLoader()
         loader.process_header(VALID_HEADER)
-        self.assertEqual(loader.data.header.gen_num, 'PN123456')
+        self.assertEqual(loader.data.gen_num, 'PN123456')
 
     def test_parse_invalid_gen_num(self):
         loader = SMRTLoader()
@@ -72,6 +72,7 @@ class ProcessHeaderTestCase(TestCase):
 class ProcessConsumptionTestCase(TestCase):
     def test_not_enough_fields(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         values = VALID_CONSUMPTION.copy()
         del values[-1]
         with self.assertRaises(DecodingError):
@@ -79,6 +80,7 @@ class ProcessConsumptionTestCase(TestCase):
 
     def test_too_many_fields(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         values = VALID_CONSUMPTION.copy()
         values.append('foo')
         with self.assertRaises(DecodingError):
@@ -86,6 +88,7 @@ class ProcessConsumptionTestCase(TestCase):
 
     def test_invalid_record_type(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         values = VALID_CONSUMPTION.copy()
         values[0] = 'FOO'
         with self.assertRaises(DecodingError):
@@ -93,16 +96,19 @@ class ProcessConsumptionTestCase(TestCase):
 
     def test_parse_valid_meter_number(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         loader.process_consumption(VALID_CONSUMPTION)
-        self.assertEqual(loader.data.consumption_records[0].meter_number, '0000000001')
+        self.assertEqual(loader.data.records[0].meter_number, '0000000001')
 
     def test_parse_valid_timestamp(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         loader.process_consumption(VALID_CONSUMPTION)
-        self.assertEqual(loader.data.consumption_records[0].timestamp, datetime(2020, 11, 22, 8, 1))
+        self.assertEqual(loader.data.records[0].timestamp, datetime(2020, 11, 22, 8, 1))
 
     def test_parse_invalid_date(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         values = VALID_CONSUMPTION.copy()
         values[2] = '20210002'
         with self.assertRaises(DecodingError):
@@ -110,6 +116,7 @@ class ProcessConsumptionTestCase(TestCase):
 
     def test_parse_invalid_time(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         values = VALID_CONSUMPTION.copy()
         values[3] = '1390'
         with self.assertRaises(DecodingError):
@@ -117,13 +124,15 @@ class ProcessConsumptionTestCase(TestCase):
 
     def test_parse_valid_consumption(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         loader.process_consumption(VALID_CONSUMPTION)
-        record = loader.data.consumption_records[0]
+        record = loader.data.records[0]
         self.assertEqual(record.consumption, 1.23)
         self.assertIsInstance(record.consumption, float)
 
     def test_parse_invalid_consumption(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         values = VALID_CONSUMPTION.copy()
         values[4] = 'AAA'
         with self.assertRaises(DecodingError):
@@ -133,11 +142,13 @@ class ProcessConsumptionTestCase(TestCase):
 class ProcessTrailTestCase(TestCase):
     def test_parse_valid_trail(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         loader.process_trail(VALID_TRAIL)
-        self.assertTrue(loader.data.received_trail)
+        self.assertTrue(loader._received_trail)
 
     def test_parse_invalid_trail(self):
         loader = SMRTLoader()
+        loader.process_header(VALID_HEADER)
         with self.assertRaises(DecodingError):
             loader.process_trail(['FOO'])
 
@@ -146,36 +157,32 @@ class ProcessRecordTestCase(TestCase):
     def test_process_header(self):
         loader = SMRTLoader()
         loader.process_record(VALID_HEADER)
-        self.assertTrue(loader.data.has_received_header())
-        self.assertIsInstance(loader.data.header, HeaderRecord)
-        self.assertEqual(loader.data.consumption_records, [])
-        self.assertFalse(loader.data.has_received_trail())
+        self.assertIsInstance(loader.data, File)
+        self.assertEqual(loader.data.records, [])
+        self.assertFalse(loader.is_complete())
 
     def test_process_header_and_consumption(self):
         loader = SMRTLoader()
         loader.process_record(VALID_HEADER)
         loader.process_record(VALID_CONSUMPTION)
-        self.assertTrue(loader.data.has_received_header())
-        self.assertEqual(len(loader.data.consumption_records), 1)
-        self.assertIsInstance(loader.data.consumption_records[0], ConsumptionRecord)
-        self.assertFalse(loader.data.has_received_trail())
+        self.assertEqual(len(loader.data.records), 1)
+        self.assertIsInstance(loader.data.records[0], Record)
+        self.assertFalse(loader.is_complete())
 
     def test_process_header_and_trail(self):
         loader = SMRTLoader()
         loader.process_record(VALID_HEADER)
         loader.process_record(VALID_TRAIL)
-        self.assertTrue(loader.data.has_received_trail())
-        self.assertEqual(loader.data.consumption_records, [])
-        self.assertTrue(loader.data.has_received_trail())
+        self.assertEqual(loader.data.records, [])
+        self.assertTrue(loader.is_complete())
     
     def test_process_header_and_consumption_and_trail(self):
         loader = SMRTLoader()
         loader.process_record(VALID_HEADER)
         loader.process_record(VALID_CONSUMPTION)
         loader.process_record(VALID_TRAIL)
-        self.assertTrue(loader.data.has_received_header())
-        self.assertEqual(len(loader.data.consumption_records), 1)
-        self.assertTrue(loader.data.has_received_trail())
+        self.assertEqual(len(loader.data.records), 1)
+        self.assertTrue(loader.is_complete())
 
     def test_header_received_after_header(self):
         loader = SMRTLoader()
@@ -215,9 +222,7 @@ class ProcessCSVTestCase(TestCase):
 
         loader = SMRTLoader()
         loader.process_csv(f)
-        self.assertTrue(loader.data.has_received_header())
-        self.assertEqual(len(loader.data.consumption_records), 2)
-        self.assertTrue(loader.data.has_received_trail())
+        self.assertEqual(len(loader.data.records), 2)
 
     def test_no_trail(self):
         # Build CSV into an in-memory file object.
@@ -252,9 +257,7 @@ class ProcessFileTestCase(TestCase):
 
             loader = SMRTLoader()
             loader.process_file(p)
-            self.assertTrue(loader.data.has_received_header())
-            self.assertEqual(len(loader.data.consumption_records), 2)
-            self.assertTrue(loader.data.has_received_trail())
+            self.assertEqual(len(loader.data.records), 2)
 
 
 if __name__ == '__main__':
