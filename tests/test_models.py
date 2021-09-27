@@ -3,8 +3,6 @@ from sqlalchemy import select
 import unittest
 from unittest import TestCase
 
-from sqlalchemy.orm.session import sessionmaker
-
 from smrt_importer.db import Session
 from smrt_importer.models import File, Record
 
