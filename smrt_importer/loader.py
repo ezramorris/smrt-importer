@@ -78,16 +78,16 @@ class SMRTLoader:
         # Create map of field types to method.
         # Can't be done at declaration time, as the object doesn't exist yet.
         self._field_type_method_map = {
-            FieldType.HEADER: self.process_header,
-            FieldType.CONSUMPTION: self.process_consumption,
-            FieldType.TRAIL: self.process_trail
+            FieldType.HEADER: self.load_header,
+            FieldType.CONSUMPTION: self.load_consumption,
+            FieldType.TRAIL: self.load_trail
         }
 
         self.data = None
         self._received_header = False
         self._received_trail = False
 
-    def _process_values(self, fields, values):
+    def _convert_values(self, fields, values):
         """Validates a list of values and converts them into a dict of
         `{field_name: value}`.
 
@@ -150,8 +150,8 @@ class SMRTLoader:
     # | Trail       | Y  | Y  | Error  |
     # | Other       | ?  | ?  | Error  |
 
-    def process_header(self, header_values: list):
-        """Process a header record.
+    def load_header(self, header_values: list):
+        """Load a header record.
         
         header_values: list of header record values.
         """
@@ -159,13 +159,13 @@ class SMRTLoader:
         if self._received_header:
             raise DecodingError('out of sequence header record received')
 
-        items = self._process_values(HEADER_FIELDS, header_values)
+        items = self._convert_values(HEADER_FIELDS, header_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
         self.data = File(timestamp=timestamp, gen_num=items['gen_num'], records=[])
         self._received_header = True
 
-    def process_consumption(self, consumption_values: list):
-        """Process a single consumption record.
+    def load_consumption(self, consumption_values: list):
+        """Load a single consumption record.
 
         consumption_values: list of consumption record values.
         """
@@ -173,7 +173,7 @@ class SMRTLoader:
         if not self._received_header or self._received_trail:
             raise DecodingError('out of sequence consumption record received')
 
-        items = self._process_values(CONSUMPTION_FIELDS, consumption_values)
+        items = self._convert_values(CONSUMPTION_FIELDS, consumption_values)
         timestamp = self._parse_timestamp(items['date_str'], items['time_str'])
 
         # Cast consumption to float.
@@ -189,8 +189,8 @@ class SMRTLoader:
         )
         self.data.records.append(record)
     
-    def process_trail(self, trail_values: list):
-        """Process a trail record.
+    def load_trail(self, trail_values: list):
+        """Load a trail record.
         
         trail_values: list of trail record values.
         """
@@ -198,11 +198,11 @@ class SMRTLoader:
         if not self._received_header or self._received_trail:
             raise DecodingError('out of sequence trail record received')
 
-        self._process_values(TRAIL_FIELDS, trail_values)
+        self._convert_values(TRAIL_FIELDS, trail_values)
         self._received_trail = True
 
-    def process_record(self, values):
-        """Process a single header, consumption or trail record.
+    def load_record(self, values):
+        """Load a single header, consumption or trail record.
         
         values: list of record values.
         """
@@ -219,8 +219,8 @@ class SMRTLoader:
 
         process(values)
 
-    def process_csv(self, f):
-        """Process all lines of CSV file.
+    def load_csv(self, f):
+        """Load all lines of CSV file.
         
         f: file object or list of strings containing CSV data.
         """
@@ -228,7 +228,7 @@ class SMRTLoader:
         try:
             reader = csv.reader(f, strict=True)
             for row in reader:
-                self.process_record(row)
+                self.load_record(row)
         except csv.Error as e:
             raise DecodingError(f'error decoding CSV: {e}')
 
@@ -236,8 +236,8 @@ class SMRTLoader:
         if not self.is_complete():
             raise DecodingError('incomplete file received')
     
-    def process_file(self, filename):
-        """Process all lines of a CSV file.
+    def load_file(self, filename):
+        """Load all lines of a CSV file.
         
         filename: file path (string or Path object) to CSV file.
 
@@ -245,6 +245,6 @@ class SMRTLoader:
         """
 
         with open(filename, newline='') as f:
-            self.process_csv(f)
+            self.load_csv(f)
 
         return self.data

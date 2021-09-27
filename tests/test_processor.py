@@ -12,7 +12,7 @@ class ProcessFileTestCase(TestCase):
     @patch('smrt_importer.processor.insert_file')
     def test_process_file(self, mock_insert_file):
         file = File(timestamp=datetime.now(), gen_num='PV123456')
-        SMRTLoader.process_file = Mock(return_value=file)
+        SMRTLoader.load_file = Mock(return_value=file)
         process_file('foo')
         mock_insert_file.assert_called_once_with(file)
 
