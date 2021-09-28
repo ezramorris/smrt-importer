@@ -1,0 +1,5 @@
+services:
+    smrt-importer:
+        build: .
+        volumes:
+            - ./data:/app/data
