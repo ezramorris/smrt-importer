@@ -14,4 +14,4 @@ COPY config.ini /app/
 COPY smrt_importer /app/smrt_importer/
 RUN pip install -e .
 
-CMD ["python", "smrt_importer/processor.py"]
+CMD ["smrt-importer"]
